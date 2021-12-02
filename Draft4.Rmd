@@ -1,0 +1,87 @@
+
+# Simple CART with no removal of words
+
+```{r}
+
+rm(list = ls())
+
+twitter <- read.csv("train.csv", stringsAsFactors = FALSE)
+twitter_test <- read.csv("test.csv", stringsAsFactors = FALSE)
+
+twitter$id <- -1
+twitter_test$sentiment <- -1
+
+twitter_comb <- rbind(twitter, twitter_test)
+
+
+
+
+# Pre-processing   (Most important phase)
+library(tm)
+library(SnowballC)       
+
+corpus <- Corpus(VectorSource(twitter_comb$tweet))
+
+corpus <- tm_map(corpus,content_transformer(tolower))
+as.character(corpus[[1]])
+
+corpus <- tm_map(corpus,removeWords,stopwords("english"))
+
+corpus <- tm_map(corpus,removePunctuation)
+           
+corpus <- tm_map(corpus,stemDocument)
+
+
+# Creating a DTM
+dtm <- DocumentTermMatrix(corpus)
+dtm
+
+dtm <- removeSparseTerms(dtm,0.995)
+dtm 
+
+
+twitter_C_sparse <- as.data.frame(as.matrix(dtm))
+colnames(twitter_C_sparse) <- make.names(colnames(twitter_C_sparse))
+
+
+
+twitter_C_sparse$sentiment <- twitter_comb$sentiment
+# twitter_C_sparse$isneutral <- twitter$isneutral
+
+# ------------------------ Modelling now ----------------
+
+train <- twitter_C_sparse[1:22500,]
+test <- twitter_C_sparse[22501:30000,]
+
+
+
+# Try CART
+library(rpart)
+library(rpart.plot)
+model2 <- rpart(as.factor(sentiment)~.,data=train)
+
+# print(model2)
+prp(model2)
+
+predict2 <- predict(model2,newdata=test,type="class")
+
+p <- as.data.frame(predict2)
+final_p <- cbind(twitter_test$id, p$predict2)
+
+colnames(final_p) <- c("id", "sentiment")
+# write.csv(final_p, "submission_1.csv")
+
+
+
+
+
+
+# training set accuracy = 0.761
+predict_train <- predict(model2,newdata=train,type="class")
+
+table(predict_train,train$sentiment)
+sum(diag(table(predict_train,train$sentiment)))/ sum(table(predict_train,train$sentiment))
+
+
+```
+
